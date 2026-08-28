@@ -9,7 +9,9 @@ class IntervalError(ValueError):
 
 
 @dataclass(frozen=True)
-class DowntimeInterval:
+class TimeInterval:
+    """A generic measured time interval with an opaque provenance reference."""
+
     start: datetime
     end: datetime
     source: str
@@ -30,8 +32,8 @@ class MergedInterval:
         return (self.end - self.start).total_seconds()
 
 
-def merge_intervals(intervals: tuple[DowntimeInterval, ...]) -> tuple[MergedInterval, ...]:
-    """Deterministically merge overlapping or touching intervals and preserve provenance."""
+def merge_intervals(intervals: tuple[TimeInterval, ...]) -> tuple[MergedInterval, ...]:
+    """Deterministically merge overlapping/touching intervals while preserving provenance."""
 
     if not intervals:
         return ()
@@ -52,22 +54,20 @@ def merge_intervals(intervals: tuple[DowntimeInterval, ...]) -> tuple[MergedInte
     return tuple(merged)
 
 
-def total_downtime_seconds(intervals: tuple[DowntimeInterval, ...]) -> float:
-    """Reference compatibility helper; do not infer that every input interval is genuine machine downtime."""
-
+def total_interval_seconds(intervals: tuple[TimeInterval, ...]) -> float:
     return sum(item.duration_seconds for item in merge_intervals(intervals))
 
 
 def clip_interval(
-    interval: DowntimeInterval,
+    interval: TimeInterval,
     *,
     window_start: datetime,
     window_end: datetime,
-) -> DowntimeInterval | None:
+) -> TimeInterval | None:
     """Clip an interval to a reporting window without changing its source record."""
 
     start = max(interval.start, window_start)
     end = min(interval.end, window_end)
     if end <= start:
         return None
-    return DowntimeInterval(start=start, end=end, source=interval.source)
+    return TimeInterval(start=start, end=end, source=interval.source)
