@@ -95,7 +95,7 @@ def test_admin_authorization_matrix(client: TestClient) -> None:
     assert client.get("/api/morning/admin/machines").status_code == 401
     admin = _admin(client)
     admin_headers = {"X-CSRF-Token": admin["csrf_token"]}
-    supervisor = _supervisor(client, admin_headers)
+    _supervisor(client, admin_headers)
     supervisor_client = TestClient(client.app)
     login = supervisor_client.post(
         "/api/morning/auth/login",
@@ -201,7 +201,7 @@ def test_supervisor_full_capture_and_explicit_machine_state(client: TestClient) 
 def test_supervisor_cannot_read_another_supervisors_report(client: TestClient) -> None:
     admin = _admin(client)
     admin_headers = {"X-CSRF-Token": admin["csrf_token"]}
-    first = _supervisor(client, admin_headers)
+    _supervisor(client, admin_headers)
     first_client = TestClient(client.app)
     first_login = first_client.post(
         "/api/morning/auth/login",
