@@ -1,79 +1,113 @@
 # Morning
 
-Interactive learning prototype for the standalone Morning operational reporting product.
+Morning is a standalone operational reporting product for shift-based engineering and mining operations.
 
-This prototype exists to make the product concrete enough to interact with, criticize and change before the production architecture and domain contract are frozen.
+The current development phase is focused on moving the proven Morning supervisor workflow into an independently deployable production system with its own persistence, authentication, configuration, reporting and operational history.
 
-## Current prototype
+This is not a disposable prototype. The current implementation is the production foundation of Morning.
 
-The current implementation is intentionally seeded with **TMM-style engineering data** and therefore remains strongly asset/fleet shaped.
+## Established supervisor workflow
 
-It currently includes:
-
-- Management overview with fundamental engineering KPIs
-- KPI drill-downs to contributing categories and source activities
-- Structured shift-capture prototype
-- 24-hour historical report list and frozen-report viewer
-- Machine utilization and operational history
-- Personnel utilization with assigned, blocked and unallocated time
-- Reliability views for repeat failures, repair effectiveness and bad actors
-- Responsive desktop/mobile experience
-
-The current TMM shape is a **prototype boundary, not the intended product boundary**.
-
-## Morning 1.0 validation scopes
-
-Morning 1.0 should be designed and tested against three genuinely different operational scopes:
-
-1. **TMM** — asset-centric engineering operations
-2. **Construction** — project/work-package-centric engineering operations
-3. **Mining** — production/process-centric operations
-
-The product should support domain-specific workspaces over a shared operational-reporting foundation.
-
-A useful common reporting grammar is:
+The existing Morning implementation remains the functional reference for the first production release:
 
 ```text
-STATUS
-↓
-PLAN
-↓
-ACTUAL
-↓
-DEVIATIONS
-↓
-CONSTRAINTS
-↓
-SAFETY
-↓
-PRIORITIES
+Start report
+    ↓
+Attendance
+    ↓
+Safety
+    ↓
+Machine activity
+    ↓
+Other activities
+    ↓
+Review & submit
 ```
 
-Morning should also support a recursive organisational reporting hierarchy so that operational units contribute upward into their parent unit's report/dashboard, eventually producing an appropriate site-level management view.
+That workflow is established and should be preserved unless operational use provides a concrete reason to change it.
 
-Information should become more compressed as it moves upward while remaining traceable back to the source activity/evidence.
+## Production direction
 
-## Product principles represented
+Morning will launch as a standalone modular monolith with:
+
+- Morning-owned application/runtime
+- PostgreSQL as the production database
+- Alembic-managed schema migrations
+- Morning-owned users, roles and authorization
+- supervisor and administration interfaces
+- structured shift capture
+- deterministic reporting and projections
+- operational history
+- machine-state continuity
+- reliability and KPI views derived from source records
+- independent deployment, backup, restore and upgrade lifecycle
+
+Morning must be able to operate without Atlas. External systems may later integrate with Morning through defined interfaces, but Morning's runtime and operational data remain self-contained.
+
+## Green launch decision
+
+Morning will launch with a **fresh production database**.
+
+The existing Morning database is not being migrated into the standalone product. The current implementation is the reference for proven behaviour, domain rules, terminology, validation and workflow — not a source database that must be carried forward.
+
+The production database therefore starts with a clean schema and fresh configuration for users, crews, personnel, machines and shift policy. Operational history begins at production cutover.
+
+**Migrate the product, not the data.**
+
+## Capture once; derive everything else
+
+Morning's core data principle is:
+
+> Capture operational truth once, then derive reports, history, reliability views and KPIs from that structured record.
+
+Authoritative typed source records remain the canonical truth. Reports, summaries and analytical views are projections of those records rather than independent sources of truth.
+
+## Machine activity and machine state
+
+Morning keeps two concepts separate:
+
+- **Work interval** — when engineering activity occurred and what work was performed.
+- **Machine state** — the declared operating condition of the machine at a point in time and across handovers.
+
+A work interval is not automatically downtime. Genuine downtime, availability and reliability calculations must be based on explicit machine-state truth rather than inferred from engineering activity duration.
+
+## Initial production scope
+
+TMM is the first production scope.
+
+Construction and Mining remain validation scopes used to test that Morning's core operational-reporting model is not accidentally hard-coded around fleet maintenance. They do not block the first production rollout, and Morning will not build a generic cross-domain configuration engine before those scopes earn the abstraction.
+
+The organisational model should retain a clean hierarchy seam so operational units can later contribute upward into appropriate management views without requiring the first release to solve every cross-domain aggregation rule.
+
+## Product principles
 
 - Capture once; use many times.
-- Reports and KPIs are views of the same structured operational truth.
-- Morning core models operational reporting rather than assuming every scope revolves around machines.
-- Domain-specific presentation is desirable; duplicating the reporting engine per domain is not.
+- Preserve the established supervisor workflow.
+- Structured source records are authoritative.
+- Reports and KPIs are deterministic projections where the truth can be calculated.
+- Work intervals and machine state are separate concepts.
 - Standing is not automatically engineering downtime.
+- Historical records remain traceable to their source.
+- Deactivation does not erase historical identity.
 - Personnel utilization is a resource-planning measure, not a performance score.
-- Fundamental KPIs must be explainable down to source evidence.
-- KPI roll-ups must use explicit aggregation rules rather than naive averaging.
-- Deterministic calculations remain authoritative where the truth can be calculated.
-- Published 24-hour reports are treated as frozen historical snapshots.
-- Do not generalise beyond TMM, Construction and Mining until the model earns it.
+- Morning remains independently deployable and recoverable.
+- Complexity must earn its place.
 
-## Prototype boundary
+## Delivery posture
 
-This is intentionally a frontend learning implementation. It does not claim to be the production backend, database, authentication model, PDF engine or final KPI contract.
+The immediate goal is a controlled operational rollout, followed by normal production use and refinement.
 
-Assumptions are deliberately easy to change as the product model matures.
+The implementation priority is therefore:
 
-## Run locally
+1. standalone persistence and migrations;
+2. Morning-owned identity, roles and authentication;
+3. extraction of the proven runtime/API/workflow;
+4. machine-state capture and cross-shift continuity;
+5. deterministic 24-hour reporting;
+6. reliability/KPI projections and drill-down;
+7. further operational scopes once the production foundation is proven.
+
+## Run the current frontend
 
 ```bash
 npm install
@@ -86,10 +120,12 @@ Production-style build check:
 npm run build
 ```
 
-## Design references
+## Authoritative implementation contract
 
-See `docs/` for the current product direction and greenfield architecture/implementation plan.
+See:
 
-The 28 August 2026 decision on multi-scope compatibility and hierarchical reporting is captured in:
+- `docs/Morning_Extraction_Contract_2026-08-28.md`
 
-- `docs/Morning_Operational_Scopes_and_Hierarchical_Reporting_2026-08-28.md`
+Where older planning material conflicts with that contract or this README, the extraction contract governs the standalone Morning implementation.
+
+Additional product-direction material remains under `docs/` as historical design context.
