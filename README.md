@@ -107,24 +107,42 @@ The implementation priority is therefore:
 6. reliability/KPI projections and drill-down;
 7. further operational scopes once the production foundation is proven.
 
-## Run the current frontend
+## Repository status
+
+The current top-level `src/` application is a **design-reference mock built with seeded/fake data**. It is not the production frontend base and must not be treated as the extraction target.
+
+The production supervisor frontend will replace that mock with the proven Morning workflow currently implemented under `companion/src/morning/` in `Keeladin/atlas-agent`.
+
+The standalone backend is being built under `backend/morning/`.
+
+## Run the current design-reference frontend
 
 ```bash
 npm install
 npm run dev
 ```
 
-Production-style build check:
+Production-style frontend build check:
 
 ```bash
 npm run build
 ```
+
+## Run the standalone backend foundation
+
+```bash
+python -m pip install -e ".[dev]"
+uvicorn morning.app:app --reload
+```
+
+The initial `/healthz` endpoint intentionally does not require a database. Production mode fails fast when required production configuration is absent.
 
 ## Authoritative implementation contract
 
 See:
 
 - `docs/Morning_Extraction_Contract_2026-08-28.md`
+- `docs/ADR-000-extraction-classification.md`
 
 Where older planning material conflicts with that contract or this README, the extraction contract governs the standalone Morning implementation.
 
