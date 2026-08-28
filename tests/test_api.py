@@ -76,7 +76,10 @@ def _supervisor(client: TestClient, admin_headers: dict[str, str]) -> dict:
         headers=admin_headers,
     )
     assert approved.status_code == 200, approved.text
-    return _login(client, "jurie", "correct-horse")
+    # Login on a separate browser session so creating a supervisor never
+    # overwrites the admin cookie carried by the caller's TestClient.
+    with TestClient(client.app) as supervisor_client:
+        return _login(supervisor_client, "jurie", "correct-horse")
 
 
 def test_registration_requires_admin_approval(client: TestClient) -> None:
@@ -217,10 +220,12 @@ def test_supervisor_cannot_read_another_supervisors_report(client: TestClient) -
         "/api/morning/auth/register",
         json={"username": "lyle", "password": "correct-horse", "display_name": "Lyle"},
     ).json()
-    client.post(
+    approved = client.post(
         f"/api/morning/admin/accounts/{registered['principal']['principal_id']}/approve",
         headers=admin_headers,
     )
+    assert approved.status_code == 200
     other = TestClient(client.app)
-    other.post("/api/morning/auth/login", json={"username": "lyle", "password": "correct-horse"})
+    login = other.post("/api/morning/auth/login", json={"username": "lyle", "password": "correct-horse"})
+    assert login.status_code == 200
     assert other.get(f"/api/morning/reports/{first_report['id']}").status_code == 404
