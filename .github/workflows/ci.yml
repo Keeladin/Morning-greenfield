@@ -73,6 +73,8 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install "httpx>=0.28,<1"
       - run: docker compose up -d --build
+      - name: Wait for Morning readiness
+        run: python -c "from scripts.rollout_smoke import wait_ready; wait_ready()"
       - name: Bootstrap smoke admin
         run: printf '%s\n' "$MORNING_SMOKE_ADMIN_PASSWORD" | docker compose exec -T api morning bootstrap-admin --username "$MORNING_SMOKE_ADMIN_USERNAME" --display-name "Smoke Admin" --password-stdin
       - name: Walk supervisor-to-management flow
