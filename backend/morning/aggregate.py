@@ -32,7 +32,9 @@ class MachineAggregate:
     machine_display_id: str
     matched: bool
     total_work_interval_seconds: float
+    total_control_room_delay_seconds: float
     work_event_count: int
+    control_room_event_count: int
     event_count: int
     key_issues: tuple[str, ...]
     events: tuple[MachineEventSource, ...]
@@ -50,10 +52,12 @@ def aggregate_machines(
 ) -> tuple[MachineAggregate, ...]:
     """Preserve supervisor and control-room evidence by machine.
 
-    Only supervisor MachineEvent intervals contribute to the engineering-work
-    duration. Control-room intervals remain distinct evidence and never turn
-    a work interval into a downtime metric. True downtime will be derived
-    from explicit machine-state history, not from this aggregate.
+    Supervisor ``MachineEvent`` intervals are engineering-work intervals.
+    Control-room observations come from the Production Delays source and are
+    therefore exposed separately as *control-room delay* duration. Neither is
+    silently promoted into canonical machine-state downtime. Availability and
+    reliability calculations must still be derived from explicit machine-state
+    history and an agreed denominator.
     """
 
     buckets: dict[str, list[MachineEventSource]] = {}
@@ -101,9 +105,15 @@ def aggregate_machines(
     for key, events in buckets.items():
         events_sorted = tuple(sorted(events, key=lambda event: event.start.isoformat() if event.start else ""))
         work_events = tuple(event for event in events if event.origin == "shift_report")
+        control_room_events = tuple(event for event in events if event.origin == "control_room")
         work_intervals = tuple(
             TimeInterval(start=event.start, end=event.end, source=event.source_id)
             for event in work_events
+            if event.start is not None and event.end is not None
+        )
+        control_room_intervals = tuple(
+            TimeInterval(start=event.start, end=event.end, source=event.source_id)
+            for event in control_room_events
             if event.start is not None and event.end is not None
         )
         key_issues = tuple(dict.fromkeys(event.description.strip() for event in events if event.description.strip()))[:5]
@@ -113,7 +123,9 @@ def aggregate_machines(
                 machine_display_id=display_for[key],
                 matched=matched_for[key],
                 total_work_interval_seconds=total_interval_seconds(work_intervals),
+                total_control_room_delay_seconds=total_interval_seconds(control_room_intervals),
                 work_event_count=len(work_events),
+                control_room_event_count=len(control_room_events),
                 event_count=len(events),
                 key_issues=key_issues,
                 events=events_sorted,
