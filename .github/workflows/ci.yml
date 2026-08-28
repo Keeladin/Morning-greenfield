@@ -44,3 +44,10 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile.backend -t morning-api:ci .
+      - run: docker build -f Dockerfile.web -t morning-web:ci .
