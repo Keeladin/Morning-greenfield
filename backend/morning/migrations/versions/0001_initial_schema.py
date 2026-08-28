@@ -67,12 +67,7 @@ def upgrade() -> None:
 
     op.create_table(
         "morning_accounts",
-        sa.Column(
-            "principal_id",
-            sa.Text(),
-            sa.ForeignKey("morning_principals.id", ondelete="CASCADE"),
-            primary_key=True,
-        ),
+        sa.Column("principal_id", sa.Text(), sa.ForeignKey("morning_principals.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("username", sa.Text(), nullable=False),
         sa.Column("password_hash", sa.Text(), nullable=False),
         sa.Column("password_salt", sa.Text(), nullable=False),
@@ -87,12 +82,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Text(), primary_key=True),
         sa.Column("shift_date", sa.Date(), nullable=False),
         sa.Column("shift_kind", sa.Text(), nullable=False),
-        sa.Column(
-            "supervisor_principal_id",
-            sa.Text(),
-            sa.ForeignKey("morning_principals.id", ondelete="RESTRICT"),
-            nullable=False,
-        ),
+        sa.Column("supervisor_principal_id", sa.Text(), sa.ForeignKey("morning_principals.id", ondelete="RESTRICT"), nullable=False),
         sa.Column("crew_id", sa.Text(), sa.ForeignKey("morning_crews.id", ondelete="SET NULL")),
         sa.Column("status", sa.Text(), nullable=False, server_default=sa.text("'draft'")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
@@ -139,6 +129,7 @@ def upgrade() -> None:
         sa.Column("report_id", sa.Text(), sa.ForeignKey("morning_reports.id", ondelete="CASCADE"), nullable=False),
         sa.Column("card_type", sa.Text(), nullable=False),
         sa.Column("reason", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.CheckConstraint("card_type IN ('red','green')", name="ck_morning_cards_type"),
     )
     op.create_index("ix_morning_cards_report", "morning_cards", ["report_id"])
@@ -162,6 +153,7 @@ def upgrade() -> None:
         sa.Column("report_id", sa.Text(), sa.ForeignKey("morning_reports.id", ondelete="CASCADE"), nullable=False),
         sa.Column("category", sa.Text()),
         sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
     )
     op.create_index("ix_morning_other_activities_report", "morning_other_activities", ["report_id"])
 
@@ -177,16 +169,9 @@ def upgrade() -> None:
         sa.Column("source_message_id", sa.Text(), nullable=False),
         sa.Column("source_artifact_id", sa.Text()),
         sa.Column("extracted_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.CheckConstraint(
-            "end_time IS NULL OR start_time IS NULL OR end_time > start_time",
-            name="ck_morning_control_room_positive_interval",
-        ),
+        sa.CheckConstraint("end_time IS NULL OR start_time IS NULL OR end_time > start_time", name="ck_morning_control_room_positive_interval"),
     )
-    op.create_index(
-        "ix_morning_control_room_reporting_date",
-        "morning_control_room_observations",
-        ["reporting_date"],
-    )
+    op.create_index("ix_morning_control_room_reporting_date", "morning_control_room_observations", ["reporting_date"])
 
 
 def downgrade() -> None:
