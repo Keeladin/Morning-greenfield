@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import os
+from uuid import uuid4
+
+from .identity import IdentityError, MorningIdentity, Principal
+from .store import MorningError, MorningStore
+
+PBKDF2_ITERATIONS = 210_000
+
+
+class AccountError(MorningError):
+    pass
+
+
+class PendingApprovalError(AccountError):
+    """Credentials are correct but an admin has not approved this account."""
+
+
+def _hash_password(password: str, salt: bytes) -> str:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS).hex()
+
+
+class MorningAccounts:
+    """Morning-owned login and account approval.
+
+    Public registration creates a supervisor principal in an unapproved
+    account state. Approval and administrative role assignment are separate
+    privileged operations; self-registration can never create an admin.
+    """
+
+    def __init__(self, store: MorningStore, identities: MorningIdentity | None = None) -> None:
+        self.store = store
+        self.identities = identities or MorningIdentity(store)
+
+    def register(self, *, username: str, password: str, display_name: str) -> Principal:
+        username = username.strip()
+        display_name = display_name.strip()
+        if not username:
+            raise AccountError("username is required")
+        if len(password) < 8:
+            raise AccountError("password must be at least 8 characters")
+        if not display_name:
+            raise AccountError("display name is required")
+        if self.store.account_by_username(username) is not None:
+            raise AccountError("username is already registered")
+
+        principal_id = f"principal_{uuid4().hex}"
+        salt = os.urandom(16)
+        password_hash = _hash_password(password, salt)
+        principal = self.identities.create_principal(principal_id, display_name, role="supervisor")
+        try:
+            self.store.create_account(
+                principal_id=principal_id,
+                username=username,
+                password_hash=password_hash,
+                password_salt=salt.hex(),
+            )
+        except MorningError:
+            self.identities.set_status(principal_id, "suspended")
+            raise
+        return principal
+
+    def authenticate(self, *, username: str, password: str) -> Principal:
+        account = self.store.account_by_username(username)
+        if account is None:
+            raise AccountError("invalid username or password")
+        salt = bytes.fromhex(account["password_salt"])
+        candidate = _hash_password(password, salt)
+        if not hmac.compare_digest(candidate, account["password_hash"]):
+            raise AccountError("invalid username or password")
+        if account["approved_at"] is None:
+            raise PendingApprovalError("account is registered but not yet approved by an admin")
+        try:
+            return self.identities.principal(account["principal_id"])
+        except IdentityError as exc:
+            raise AccountError("account is not active") from exc
+
+    def approve(self, principal_id: str) -> Principal:
+        self.store.approve_account(principal_id)
+        try:
+            return self.identities.principal(principal_id)
+        except IdentityError as exc:
+            raise AccountError(str(exc)) from exc
+
+    def list_pending(self) -> tuple[dict, ...]:
+        return self.store.list_accounts(pending_only=True)
+
+    def principal_for(self, principal_id: str) -> Principal:
+        try:
+            return self.identities.principal(principal_id)
+        except IdentityError as exc:
+            raise AccountError(str(exc)) from exc
