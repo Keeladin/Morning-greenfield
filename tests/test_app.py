@@ -14,4 +14,5 @@ def test_healthz_does_not_require_a_database_in_development() -> None:
         "status": "ok",
         "service": "morning",
         "environment": "development",
+        "application_ready": False,
     }

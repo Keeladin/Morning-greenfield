@@ -26,16 +26,17 @@ def _hash_password(password: str, salt: bytes) -> str:
 class MorningAccounts:
     """Morning-owned login and account approval.
 
-    Public registration creates a supervisor principal in an unapproved
-    account state. Approval and administrative role assignment are separate
-    privileged operations; self-registration can never create an admin.
+    Public registration always creates an unapproved supervisor. Admin
+    creation is a separate operator-only bootstrap operation and is never
+    exposed through the public registration endpoint.
     """
 
     def __init__(self, store: MorningStore, identities: MorningIdentity | None = None) -> None:
         self.store = store
         self.identities = identities or MorningIdentity(store)
 
-    def register(self, *, username: str, password: str, display_name: str) -> Principal:
+    @staticmethod
+    def _validate_credentials(*, username: str, password: str, display_name: str) -> tuple[str, str]:
         username = username.strip()
         display_name = display_name.strip()
         if not username:
@@ -44,13 +45,29 @@ class MorningAccounts:
             raise AccountError("password must be at least 8 characters")
         if not display_name:
             raise AccountError("display name is required")
+        return username, display_name
+
+    def _create_account(
+        self,
+        *,
+        username: str,
+        password: str,
+        display_name: str,
+        role: str,
+        approve: bool,
+    ) -> Principal:
+        username, display_name = self._validate_credentials(
+            username=username,
+            password=password,
+            display_name=display_name,
+        )
         if self.store.account_by_username(username) is not None:
             raise AccountError("username is already registered")
 
         principal_id = f"principal_{uuid4().hex}"
         salt = os.urandom(16)
         password_hash = _hash_password(password, salt)
-        principal = self.identities.create_principal(principal_id, display_name, role="supervisor")
+        principal = self.identities.create_principal(principal_id, display_name, role=role)
         try:
             self.store.create_account(
                 principal_id=principal_id,
@@ -58,10 +75,32 @@ class MorningAccounts:
                 password_hash=password_hash,
                 password_salt=salt.hex(),
             )
+            if approve:
+                self.store.approve_account(principal_id)
         except MorningError:
             self.identities.set_status(principal_id, "suspended")
             raise
         return principal
+
+    def register(self, *, username: str, password: str, display_name: str) -> Principal:
+        return self._create_account(
+            username=username,
+            password=password,
+            display_name=display_name,
+            role="supervisor",
+            approve=False,
+        )
+
+    def create_admin(self, *, username: str, password: str, display_name: str) -> Principal:
+        """Operator-only bootstrap helper. Do not expose as a public route."""
+
+        return self._create_account(
+            username=username,
+            password=password,
+            display_name=display_name,
+            role="admin",
+            approve=True,
+        )
 
     def authenticate(self, *, username: str, password: str) -> Principal:
         account = self.store.account_by_username(username)

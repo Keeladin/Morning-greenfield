@@ -23,6 +23,9 @@ dev = [
   "ruff>=0.12,<1",
 ]
 
+[project.scripts]
+morning = "morning.cli:main"
+
 [tool.setuptools]
 package-dir = {"" = "backend"}
 
